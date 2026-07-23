@@ -131,6 +131,7 @@ fn main() {
     );
 
     let mut grid = build_initial_state();
+    let mut paused = false;
     let mut frame_count: u64 = 0;
     let tick_interval = Duration::from_millis(TICK_INTERVAL_MS);
     let mut last_frame_time = Instant::now();
@@ -140,12 +141,29 @@ fn main() {
         frame_count += 1;
 
         let now = Instant::now();
-        step_accumulator += now - last_frame_time;
+        let delta = now - last_frame_time;
         last_frame_time = now;
 
-        while step_accumulator >= tick_interval {
-            grid = grid.step();
-            step_accumulator -= tick_interval;
+        if window.is_key_pressed(KeyboardKey::KEY_SPACE) {
+            paused = !paused;
+        }
+
+        if window.is_key_pressed(KeyboardKey::KEY_R) {
+            grid = build_initial_state();
+            step_accumulator = Duration::ZERO;
+        }
+
+        if paused {
+            if window.is_key_pressed(KeyboardKey::KEY_RIGHT) {
+                grid = grid.step();
+            }
+        } else {
+            step_accumulator += delta;
+
+            while step_accumulator >= tick_interval {
+                grid = grid.step();
+                step_accumulator -= tick_interval;
+            }
         }
 
         render(&mut framebuffer, &grid);
