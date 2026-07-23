@@ -23,8 +23,7 @@ impl Framebuffer {
     }
 
     pub fn clear(&mut self) {
-        self.color_buffer =
-            Image::gen_image_color(self.width as i32, self.height as i32, self.background_color);
+        self.color_buffer.clear_background(self.background_color);
     }
 
     pub fn set_pixel(&mut self, x: i32, y: i32, color: Color) {
@@ -57,10 +56,25 @@ impl Framebuffer {
         raylib_thread: &RaylibThread,
         window_width: i32,
         window_height: i32,
+        overlay_text: Option<&str>,
     ) {
         if let Ok(texture) = window.load_texture_from_image(raylib_thread, &self.color_buffer) {
             let source = Rectangle::new(0.0, 0.0, self.width as f32, self.height as f32);
             let dest = Rectangle::new(0.0, 0.0, window_width as f32, window_height as f32);
+            let overlay_layout = overlay_text.map(|text| {
+                let font_size = 20;
+                let text_width = window.measure_text(text, font_size);
+                let padding_x = 12;
+                let padding_y = 8;
+                let box_width = text_width + padding_x * 2;
+                let box_height = font_size + padding_y * 2;
+                let box_x = (window_width - box_width) / 2;
+                let box_y = window_height - box_height - 10;
+                let text_x = box_x + padding_x;
+                let text_y = box_y + padding_y;
+
+                (text_x, text_y, box_x, box_y, box_width, box_height, font_size, text)
+            });
             let mut renderer = window.begin_drawing(raylib_thread);
             renderer.draw_texture_pro(
                 &texture,
@@ -70,6 +84,21 @@ impl Framebuffer {
                 0.0,
                 Color::WHITE,
             );
+
+            if let Some((text_x, text_y, box_x, box_y, box_width, box_height, font_size, text)) =
+                overlay_layout
+            {
+                // Pequeño HUD para que el estado visible no dependa de la decoración
+                // de la ventana del sistema operativo.
+                renderer.draw_rectangle(
+                    box_x,
+                    box_y,
+                    box_width,
+                    box_height,
+                    Color::new(0, 0, 0, 180),
+                );
+                renderer.draw_text(text, text_x, text_y, font_size, Color::RAYWHITE);
+            }
         }
     }
 }

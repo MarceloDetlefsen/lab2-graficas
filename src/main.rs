@@ -133,6 +133,7 @@ fn main() {
     let mut grid = build_initial_state();
     let mut paused = false;
     let mut frame_count: u64 = 0;
+    let mut generation: u64 = 0;
     let tick_interval = Duration::from_millis(TICK_INTERVAL_MS);
     let mut last_frame_time = Instant::now();
     let mut step_accumulator = Duration::ZERO;
@@ -150,21 +151,27 @@ fn main() {
 
         if window.is_key_pressed(KeyboardKey::KEY_R) {
             grid = build_initial_state();
+            generation = 0;
             step_accumulator = Duration::ZERO;
         }
 
         if paused {
             if window.is_key_pressed(KeyboardKey::KEY_RIGHT) {
                 grid = grid.step();
+                generation += 1;
             }
         } else {
             step_accumulator += delta;
 
             while step_accumulator >= tick_interval {
                 grid = grid.step();
+                generation += 1;
                 step_accumulator -= tick_interval;
             }
         }
+
+        let title = format!("Conway's Game of Life - Gen: {generation}");
+        window.set_window_title(&raylib_thread, &title);
 
         render(&mut framebuffer, &grid);
         framebuffer.swap_buffers_scaled(
@@ -172,6 +179,7 @@ fn main() {
             &raylib_thread,
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
+            Some(&title),
         );
     }
 }
