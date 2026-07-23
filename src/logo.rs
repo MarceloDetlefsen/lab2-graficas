@@ -10,7 +10,7 @@ pub fn load_logo_pattern(
     threshold: u8,
     invert: bool,
 ) -> Vec<(i32, i32)> {
-    load_logo_pattern_colored(path, target_w, target_h, threshold, invert)
+    load_logo_pattern_colored(path, target_w, target_h, threshold, invert, 1.0)
         .into_iter()
         .map(|(x, y, _)| (x, y))
         .collect()
@@ -19,14 +19,23 @@ pub fn load_logo_pattern(
 /// Igual que `load_logo_pattern`, pero conserva el color real de cada celda
 /// viva para poder dibujar el logo con su degradado original en el frame
 /// inicial.
+///
+/// `density` controla qué porcentaje de las celdas candidatas se conserva
+/// como vivas. `1.0` mantiene todas, `0.4` conserva aproximadamente el 40%.
 pub fn load_logo_pattern_colored(
     path: &str,
     target_w: u32,
     target_h: u32,
     threshold: u8,
     invert: bool,
+    density: f32,
 ) -> Vec<(i32, i32, Color)> {
     let img = image::open(path).expect("no se pudo abrir la imagen del logo");
+    let density = if density.is_finite() {
+        density.clamp(0.0, 1.0)
+    } else {
+        1.0
+    };
 
     // Triangle suaviza el downscale sin introducir tanto ringing como
     // filtros más agresivos, y queda mejor para limpiar la silueta.
@@ -51,7 +60,7 @@ pub fn load_logo_pattern_colored(
 
             let is_alive = if invert { is_alive } else { !is_alive };
 
-            if is_alive {
+            if is_alive && rand::random::<f32>() < density {
                 cells.push((x as i32, y as i32, Color::new(r, g, b, a)));
             }
         }

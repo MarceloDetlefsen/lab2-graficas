@@ -936,6 +936,7 @@ name = "raylib_image_tutorial"
 version = "0.1.0"
 dependencies = [
  "image",
+ "rand",
  "raylib",
 ]
 

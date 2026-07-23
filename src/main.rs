@@ -59,6 +59,7 @@ fn build_initial_state() -> Grid {
         logo_h,
         140,
         true,
+        0.4,
     );
 
     let logo_origin_x = (GRID_WIDTH as i32 - logo_w as i32) / 2;
