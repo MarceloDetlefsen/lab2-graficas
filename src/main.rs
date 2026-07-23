@@ -67,6 +67,16 @@ fn build_initial_state() -> Grid {
 
     place_pattern_colored(&mut grid, logo_origin_x, logo_origin_y, logo_cells);
 
+    // --- Patrones pequeños alrededor del logo ---
+    place_pattern(&mut grid, 24, 14, patterns::glider());
+    place_pattern(&mut grid, 55, 16, patterns::blinker());
+    place_pattern(&mut grid, 84, 14, patterns::glider());
+    place_pattern(&mut grid, 18, 48, patterns::beehive());
+    place_pattern(&mut grid, 89, 47, patterns::loaf());
+    place_pattern(&mut grid, 26, 83, patterns::boat());
+    place_pattern(&mut grid, 55, 88, patterns::toad());
+    place_pattern(&mut grid, 84, 83, patterns::beacon());
+
     // --- Patrones clásicos distribuidos con más espacio entre ellos y
 
     // Glider gun arriba a la izquierda, disparando hacia el centro.
