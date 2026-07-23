@@ -7,6 +7,7 @@ mod patterns;
 use framebuffer::Framebuffer;
 use life::Grid;
 use raylib::prelude::*;
+use std::time::{Duration, Instant};
 
 /// Resolución lógica del juego (cada celda = 1 "pixel" del framebuffer).
 const GRID_WIDTH: u32 = 120;
@@ -17,6 +18,7 @@ const WINDOW_WIDTH: i32 = 900;
 const WINDOW_HEIGHT: i32 = 900;
 
 const BACKGROUND_COLOR: Color = Color::BLACK;
+const TICK_INTERVAL_MS: u64 = 120;
 
 fn place_pattern(grid: &mut Grid, origin_x: i32, origin_y: i32, cells: Vec<(i32, i32)>) {
     for (dx, dy) in cells {
@@ -116,10 +118,25 @@ fn main() {
         Color::BLACK,
     );
 
-    let grid = build_initial_state();
-    render(&mut framebuffer, &grid);
+    let mut grid = build_initial_state();
+    let mut frame_count: u64 = 0;
+    let tick_interval = Duration::from_millis(TICK_INTERVAL_MS);
+    let mut last_frame_time = Instant::now();
+    let mut step_accumulator = Duration::ZERO;
 
     while !window.window_should_close() {
+        frame_count += 1;
+
+        let now = Instant::now();
+        step_accumulator += now - last_frame_time;
+        last_frame_time = now;
+
+        while step_accumulator >= tick_interval {
+            grid = grid.step();
+            step_accumulator -= tick_interval;
+        }
+
+        render(&mut framebuffer, &grid);
         framebuffer.swap_buffers_scaled(
             &mut window,
             &raylib_thread,
