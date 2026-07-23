@@ -31,13 +31,29 @@ fn place_pattern(grid: &mut Grid, origin_x: i32, origin_y: i32, cells: Vec<(i32,
     }
 }
 
+fn place_pattern_colored(
+    grid: &mut Grid,
+    origin_x: i32,
+    origin_y: i32,
+    cells: Vec<(i32, i32, Color)>,
+) {
+    for (dx, dy, color) in cells {
+        let x = origin_x + dx;
+        let y = origin_y + dy;
+
+        if let (Ok(x), Ok(y)) = (u32::try_from(x), u32::try_from(y)) {
+            grid.set_alive_color(x, y, Some(color));
+        }
+    }
+}
+
 fn build_initial_state() -> Grid {
     let mut grid = Grid::new(GRID_WIDTH, GRID_HEIGHT);
 
     // --- Logo del meteoro (silueta) al centro del grid ---
     let logo_w = 46;
     let logo_h = 46;
-    let logo_cells = logo::load_logo_pattern(
+    let logo_cells = logo::load_logo_pattern_colored(
         "assets/ff7_logo.png",
         logo_w,
         logo_h,
@@ -48,7 +64,7 @@ fn build_initial_state() -> Grid {
     let logo_origin_x = (GRID_WIDTH as i32 - logo_w as i32) / 2;
     let logo_origin_y = (GRID_HEIGHT as i32 - logo_h as i32) / 2 - 6;
 
-    place_pattern(&mut grid, logo_origin_x, logo_origin_y, logo_cells);
+    place_pattern_colored(&mut grid, logo_origin_x, logo_origin_y, logo_cells);
 
     // --- Patrones clásicos distribuidos con más espacio entre ellos y
 
@@ -95,11 +111,7 @@ fn render(framebuffer: &mut Framebuffer, grid: &Grid) {
     framebuffer.clear();
     for y in 0..grid.height {
         for x in 0..grid.width {
-            let color = if grid.is_alive(x, y) {
-                Color::WHITE
-            } else {
-                BACKGROUND_COLOR
-            };
+            let color = grid.get_color(x, y).unwrap_or(BACKGROUND_COLOR);
             framebuffer.set_pixel(x as i32, y as i32, color);
         }
     }
