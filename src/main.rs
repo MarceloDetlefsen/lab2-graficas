@@ -4,9 +4,8 @@ mod line;
 mod logo;
 mod patterns;
 
-use std::collections::HashSet;
-
 use framebuffer::Framebuffer;
+use life::Grid;
 use raylib::prelude::*;
 
 /// Resolución lógica del juego (cada celda = 1 "pixel" del framebuffer).
@@ -17,8 +16,21 @@ const GRID_HEIGHT: u32 = 120;
 const WINDOW_WIDTH: i32 = 900;
 const WINDOW_HEIGHT: i32 = 900;
 
-fn build_initial_state() -> HashSet<(i32, i32)> {
-    let mut live_cells: HashSet<(i32, i32)> = HashSet::new();
+const BACKGROUND_COLOR: Color = Color::BLACK;
+
+fn place_pattern(grid: &mut Grid, origin_x: i32, origin_y: i32, cells: Vec<(i32, i32)>) {
+    for (dx, dy) in cells {
+        let x = origin_x + dx;
+        let y = origin_y + dy;
+
+        if let (Ok(x), Ok(y)) = (u32::try_from(x), u32::try_from(y)) {
+            grid.set_alive(x, y, true);
+        }
+    }
+}
+
+fn build_initial_state() -> Grid {
+    let mut grid = Grid::new(GRID_WIDTH, GRID_HEIGHT);
 
     // --- Logo del meteoro (silueta) al centro del grid ---
     let logo_w = 46;
@@ -34,85 +46,60 @@ fn build_initial_state() -> HashSet<(i32, i32)> {
     let logo_origin_x = (GRID_WIDTH as i32 - logo_w as i32) / 2;
     let logo_origin_y = (GRID_HEIGHT as i32 - logo_h as i32) / 2 - 6;
 
-    for (dx, dy) in logo_cells {
-        live_cells.insert((logo_origin_x + dx, logo_origin_y + dy));
-    }
+    place_pattern(&mut grid, logo_origin_x, logo_origin_y, logo_cells);
 
     // --- Patrones clásicos distribuidos con más espacio entre ellos y
 
     // Glider gun arriba a la izquierda, disparando hacia el centro.
-    for (dx, dy) in patterns::gosper_glider_gun() {
-        live_cells.insert((3 + dx, 3 + dy));
-    }
+    place_pattern(&mut grid, 3, 3, patterns::gosper_glider_gun());
 
     // Pulsar arriba a la derecha.
-    for (dx, dy) in patterns::pulsar() {
-        live_cells.insert((90 + dx, 4 + dy));
-    }
+    place_pattern(&mut grid, 90, 4, patterns::pulsar());
 
     // Pentadecathlon abajo a la izquierda.
-    for (dx, dy) in patterns::pentadecathlon() {
-        live_cells.insert((6 + dx, 95 + dy));
-    }
+    place_pattern(&mut grid, 6, 95, patterns::pentadecathlon());
 
     // LWSS viajando por la orilla inferior.
-    for (dx, dy) in patterns::lwss() {
-        live_cells.insert((45 + dx, 110 + dy));
-    }
+    place_pattern(&mut grid, 45, 110, patterns::lwss());
 
     // MWSS abajo a la derecha.
-    for (dx, dy) in patterns::mwss() {
-        live_cells.insert((90 + dx, 108 + dy));
-    }
+    place_pattern(&mut grid, 90, 108, patterns::mwss());
 
     // HWSS a la derecha, altura media.
-    for (dx, dy) in patterns::hwss() {
-        live_cells.insert((100 + dx, 55 + dy));
-    }
+    place_pattern(&mut grid, 100, 55, patterns::hwss());
 
     // Glider suelto, arriba al centro, "entrando en cámara".
-    for (dx, dy) in patterns::glider() {
-        live_cells.insert((55 + dx, 3 + dy));
-    }
+    place_pattern(&mut grid, 55, 3, patterns::glider());
 
     // Beacon y toad a los costados, altura media.
-    for (dx, dy) in patterns::beacon() {
-        live_cells.insert((105 + dx, 90 + dy));
-    }
-    for (dx, dy) in patterns::toad() {
-        live_cells.insert((3 + dx, 60 + dy));
-    }
+    place_pattern(&mut grid, 105, 90, patterns::beacon());
+    place_pattern(&mut grid, 3, 60, patterns::toad());
 
     // Still lifes (loaf, boat, tub, block, beehive) como relleno,
     // repartidos en huecos libres alrededor del logo.
-    for (dx, dy) in patterns::loaf() {
-        live_cells.insert((55 + dx, 100 + dy));
-    }
-    for (dx, dy) in patterns::boat() {
-        live_cells.insert((15 + dx, 20 + dy));
-    }
-    for (dx, dy) in patterns::tub() {
-        live_cells.insert((100 + dx, 25 + dy));
-    }
-    for (dx, dy) in patterns::block() {
-        live_cells.insert((3 + dx, 45 + dy));
-    }
-    for (dx, dy) in patterns::beehive() {
-        live_cells.insert((3 + dx, 80 + dy));
-    }
+    place_pattern(&mut grid, 55, 100, patterns::loaf());
+    place_pattern(&mut grid, 15, 20, patterns::boat());
+    place_pattern(&mut grid, 100, 25, patterns::tub());
+    place_pattern(&mut grid, 3, 45, patterns::block());
+    place_pattern(&mut grid, 3, 80, patterns::beehive());
 
     // Blinker de relleno cerca del centro-derecha.
-    for (dx, dy) in patterns::blinker() {
-        live_cells.insert((95 + dx, 100 + dy));
-    }
+    place_pattern(&mut grid, 95, 100, patterns::blinker());
 
-    live_cells
+    grid
 }
 
-fn render(framebuffer: &mut Framebuffer, live_cells: &HashSet<(i32, i32)>) {
+fn render(framebuffer: &mut Framebuffer, grid: &Grid) {
     framebuffer.clear();
-    for &(x, y) in live_cells {
-        framebuffer.set_pixel(x, y, Color::WHITE);
+    for y in 0..grid.height {
+        for x in 0..grid.width {
+            let color = if grid.is_alive(x, y) {
+                Color::WHITE
+            } else {
+                BACKGROUND_COLOR
+            };
+            framebuffer.set_pixel(x as i32, y as i32, color);
+        }
     }
 }
 
@@ -129,8 +116,8 @@ fn main() {
         Color::BLACK,
     );
 
-    let live_cells = build_initial_state();
-    render(&mut framebuffer, &live_cells);
+    let grid = build_initial_state();
+    render(&mut framebuffer, &grid);
 
     while !window.window_should_close() {
         framebuffer.swap_buffers_scaled(
