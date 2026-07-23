@@ -69,16 +69,6 @@ pub fn beacon() -> Vec<(i32, i32)> {
 
 pub fn pulsar() -> Vec<(i32, i32)> {
     // Patrón clásico de periodo 3, 13x13 aprox.
-    let mut cells = Vec::new();
-    let rows_offsets: [i32; 2] = [0, 6];
-    let cols_pattern = [2, 3, 4, 8, 9, 10];
-
-    for &row_base in &rows_offsets {
-        for r in [row_base - 1, row_base + 7] {
-            // horizontal bars arriba y abajo
-        }
-    }
-
     // Definido explícitamente para evitar errores de simetría:
     let coords = [
         (2, 0), (3, 0), (4, 0), (8, 0), (9, 0), (10, 0),
@@ -92,8 +82,8 @@ pub fn pulsar() -> Vec<(i32, i32)> {
         (0, 10), (5, 10), (7, 10), (12, 10),
         (2, 12), (3, 12), (4, 12), (8, 12), (9, 12), (10, 12),
     ];
+    let mut cells = Vec::new();
     cells.extend_from_slice(&coords);
-    let _ = cols_pattern;
     cells
 }
 

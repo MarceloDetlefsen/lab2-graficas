@@ -3,19 +3,6 @@ use std::collections::HashSet;
 use image::GenericImageView;
 use raylib::prelude::Color;
 
-pub fn load_logo_pattern(
-    path: &str,
-    target_w: u32,
-    target_h: u32,
-    threshold: u8,
-    invert: bool,
-) -> Vec<(i32, i32)> {
-    load_logo_pattern_colored(path, target_w, target_h, threshold, invert, 1.0)
-        .into_iter()
-        .map(|(x, y, _)| (x, y))
-        .collect()
-}
-
 /// Igual que `load_logo_pattern`, pero conserva el color real de cada celda
 /// viva para poder dibujar el logo con su degradado original en el frame
 /// inicial.

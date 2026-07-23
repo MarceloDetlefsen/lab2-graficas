@@ -1,6 +1,5 @@
 mod framebuffer;
 mod life;
-mod line;
 mod logo;
 mod patterns;
 
@@ -144,15 +143,12 @@ fn main() {
     let mut grid = build_initial_state();
     let mut paused = false;
     let mut show_counter = true;
-    let mut frame_count: u64 = 0;
     let mut generation: u64 = 0;
     let tick_interval = Duration::from_millis(TICK_INTERVAL_MS);
     let mut last_frame_time = Instant::now();
     let mut step_accumulator = Duration::ZERO;
 
     while !window.window_should_close() {
-        frame_count += 1;
-
         let now = Instant::now();
         let delta = now - last_frame_time;
         last_frame_time = now;
