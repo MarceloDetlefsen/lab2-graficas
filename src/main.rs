@@ -1,97 +1,156 @@
 mod framebuffer;
 mod line;
+mod logo;
+mod patterns;
 
-use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::collections::{HashMap, HashSet};
 
 use framebuffer::Framebuffer;
-use line::line;
 use raylib::prelude::*;
 
-fn render(framebuffer: &mut Framebuffer, translate_x: f32, translate_y: f32) {
-    framebuffer.set_current_color(Color::GREEN);
-    line(
-        framebuffer,
-        Vector2::new(50.0 + translate_x, 50.0 + translate_y),
-        Vector2::new(350.0 + translate_x, 350.0 + translate_y),
+/// Resolución lógica del juego (cada celda = 1 "pixel" del framebuffer).
+/// Se mantiene baja a propósito para que el escalado a la ventana se note.
+const GRID_WIDTH: u32 = 160;
+const GRID_HEIGHT: u32 = 160;
+
+/// Resolución real de la ventana. GRID -> WINDOW se escala en swap_buffers_scaled.
+const WINDOW_WIDTH: i32 = 800;
+const WINDOW_HEIGHT: i32 = 800;
+
+fn build_initial_state() -> (HashSet<(i32, i32)>, HashMap<(i32, i32), Color>) {
+    let mut live_cells: HashSet<(i32, i32)> = HashSet::new();
+    let mut logo_colors: HashMap<(i32, i32), Color> = HashMap::new();
+
+    // --- Logo del meteoro (silueta) al centro del grid ---
+    let logo_w = 70;
+    let logo_h = 70;
+    let logo_cells = logo::load_logo_pattern_colored(
+        "assets/ff7_logo.png",
+        logo_w,
+        logo_h,
+        40,
+        true,
     );
 
-    framebuffer.set_current_color(Color::RED);
-    line(
-        framebuffer,
-        Vector2::new(350.0 + translate_x, 50.0 + translate_y),
-        Vector2::new(50.0 + translate_x, 350.0 + translate_y),
-    );
+    let logo_origin_x = (GRID_WIDTH as i32 - logo_w as i32) / 2;
+    let logo_origin_y = (GRID_HEIGHT as i32 - logo_h as i32) / 2 - 10;
+
+    for (dx, dy, color) in logo_cells {
+        live_cells.insert((logo_origin_x + dx, logo_origin_y + dy));
+        logo_colors.insert((logo_origin_x + dx, logo_origin_y + dy), color);
+    }
+
+    // --- Patrones clásicos alrededor, para que se note la mecánica real ---
+
+    // Glider gun arriba a la izquierda, disparando hacia el centro.
+    for (dx, dy) in patterns::gosper_glider_gun() {
+        live_cells.insert((5 + dx, 5 + dy));
+    }
+
+    // Pulsar arriba a la derecha.
+    for (dx, dy) in patterns::pulsar() {
+        live_cells.insert((120 + dx, 10 + dy));
+    }
+
+    // Pentadecathlon abajo a la izquierda.
+    for (dx, dy) in patterns::pentadecathlon() {
+        live_cells.insert((15 + dx, 130 + dy));
+    }
+
+    // LWSS viajando por la orilla inferior.
+    for (dx, dy) in patterns::lwss() {
+        live_cells.insert((60 + dx, 145 + dy));
+    }
+
+    // MWSS abajo a la derecha.
+    for (dx, dy) in patterns::mwss() {
+        live_cells.insert((120 + dx, 140 + dy));
+    }
+
+    // Beacon y toad como relleno cerca del centro-derecha.
+    for (dx, dy) in patterns::beacon() {
+        live_cells.insert((140 + dx, 70 + dy));
+    }
+    for (dx, dy) in patterns::toad() {
+        live_cells.insert((10 + dx, 70 + dy));
+    }
+
+    // Blinker y block/beehive como detalle extra.
+    for (dx, dy) in patterns::blinker() {
+        live_cells.insert((80 + dx, 5 + dy));
+    }
+    for (dx, dy) in patterns::block() {
+        live_cells.insert((5 + dx, 100 + dy));
+    }
+    for (dx, dy) in patterns::beehive() {
+        live_cells.insert((150 + dx, 100 + dy));
+    }
+
+    (live_cells, logo_colors)
 }
 
-fn screenshot_name() -> String {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis();
+fn build_logo_palette(logo_colors: &HashMap<(i32, i32), Color>) -> Vec<Color> {
+    let mut palette = Vec::new();
 
-    format!("framebuffer_{timestamp}.png")
+    for &color in logo_colors.values() {
+        if !palette.contains(&color) {
+            palette.push(color);
+        }
+    }
+
+    palette.sort_by_key(|color| {
+        (0.299 * color.r as f32 + 0.587 * color.g as f32 + 0.114 * color.b as f32) as u32
+    });
+
+    palette
+}
+
+fn color_for_cell(
+    x: i32,
+    y: i32,
+    logo_colors: &HashMap<(i32, i32), Color>,
+    logo_palette: &[Color],
+) -> Color {
+    if let Some(color) = logo_colors.get(&(x, y)) {
+        return *color;
+    }
+
+    if logo_palette.is_empty() {
+        return Color::WHITE;
+    }
+
+    let index =
+        ((x.wrapping_mul(31) ^ y.wrapping_mul(17)).unsigned_abs() as usize) % logo_palette.len();
+    logo_palette[index]
+}
+
+fn render(
+    framebuffer: &mut Framebuffer,
+    live_cells: &HashSet<(i32, i32)>,
+    logo_colors: &HashMap<(i32, i32), Color>,
+) {
+    let logo_palette = build_logo_palette(logo_colors);
+
+    framebuffer.clear();
+    for &(x, y) in live_cells {
+        let color = color_for_cell(x, y, logo_colors, &logo_palette);
+        framebuffer.set_pixel(x, y, color);
+    }
 }
 
 fn main() {
-    let window_width = 800;
-    let window_height = 600;
-
-    let framebuffer_width = 800;
-    let framebuffer_height = 600;
-
     let (mut window, raylib_thread) = raylib::init()
-        .size(window_width, window_height)
-        .title("Window Example")
+        .size(WINDOW_WIDTH, WINDOW_HEIGHT)
+        .title("Conway's Game of Life - FF7 Meteor")
         .log_level(TraceLogLevel::LOG_WARNING)
         .build();
 
-    let mut framebuffer = Framebuffer::new(
-        framebuffer_width,
-        framebuffer_height,
-        Color::new(50, 50, 100, 255),
-    );
+    let mut framebuffer = Framebuffer::new(GRID_WIDTH, GRID_HEIGHT, Color::BLACK);
 
-    let mut translate_x: f32 = 0.0;
-    let mut translate_y: f32 = 0.0;
-    let mut velocity_x: f32 = 1.0;
-    let mut velocity_y: f32 = 1.0;
-
-    let min_x = 0.0;
-    let min_y = 0.0;
-    let max_x = framebuffer_width as f32 - 350.0;
-    let max_y = framebuffer_height as f32 - 350.0;
+    let (live_cells, logo_colors) = build_initial_state();
+    render(&mut framebuffer, &live_cells, &logo_colors);
 
     while !window.window_should_close() {
-        translate_x += velocity_x;
-        translate_y += velocity_y;
-
-        if translate_x <= min_x {
-            translate_x = min_x;
-            velocity_x = velocity_x.abs();
-        } else if translate_x >= max_x {
-            translate_x = max_x;
-            velocity_x = -velocity_x.abs();
-        }
-
-        if translate_y <= min_y {
-            translate_y = min_y;
-            velocity_y = velocity_y.abs();
-        } else if translate_y >= max_y {
-            translate_y = max_y;
-            velocity_y = -velocity_y.abs();
-        }
-
-        framebuffer.clear();
-        render(&mut framebuffer, translate_x, translate_y);
-
-        if window.is_key_pressed(KeyboardKey::KEY_S) {
-            let filename = screenshot_name();
-            framebuffer.render_to_file(&filename);
-        }
-
-        framebuffer.swap_buffers(&mut window, &raylib_thread);
-
-        thread::sleep(Duration::from_millis(16));
+        framebuffer.swap_buffers_scaled(&mut window, &raylib_thread, WINDOW_WIDTH, WINDOW_HEIGHT);
     }
 }

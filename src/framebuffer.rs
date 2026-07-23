@@ -23,11 +23,8 @@ impl Framebuffer {
     }
 
     pub fn clear(&mut self) {
-        self.color_buffer = Image::gen_image_color(
-            self.width as i32,
-            self.height as i32,
-            self.background_color,
-        );
+        self.color_buffer =
+            Image::gen_image_color(self.width as i32, self.height as i32, self.background_color);
     }
 
     pub fn set_pixel(&mut self, x: i32, y: i32, color: Color) {
@@ -44,14 +41,35 @@ impl Framebuffer {
         self.color_buffer.export_image(filename);
     }
 
-    pub fn swap_buffers(
-        &self,
-        window: &mut RaylibHandle,
-        raylib_thread: &RaylibThread,
-    ) {
+    pub fn swap_buffers(&self, window: &mut RaylibHandle, raylib_thread: &RaylibThread) {
         if let Ok(texture) = window.load_texture_from_image(raylib_thread, &self.color_buffer) {
             let mut renderer = window.begin_drawing(raylib_thread);
             renderer.draw_texture(&texture, 0, 0, Color::WHITE);
+        }
+    }
+
+    /// Como swap_buffers, pero escala el framebuffer (resolución del grid,
+    /// p.ej. 100x100) al tamaño real de la ventana (p.ej. 800x800).
+    /// Útil para que cada "célula" ocupe varios píxeles en pantalla.
+    pub fn swap_buffers_scaled(
+        &self,
+        window: &mut RaylibHandle,
+        raylib_thread: &RaylibThread,
+        window_width: i32,
+        window_height: i32,
+    ) {
+        if let Ok(texture) = window.load_texture_from_image(raylib_thread, &self.color_buffer) {
+            let source = Rectangle::new(0.0, 0.0, self.width as f32, self.height as f32);
+            let dest = Rectangle::new(0.0, 0.0, window_width as f32, window_height as f32);
+            let mut renderer = window.begin_drawing(raylib_thread);
+            renderer.draw_texture_pro(
+                &texture,
+                source,
+                dest,
+                Vector2::new(0.0, 0.0),
+                0.0,
+                Color::WHITE,
+            );
         }
     }
 }
