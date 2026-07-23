@@ -17,7 +17,7 @@ const GRID_HEIGHT: u32 = 120;
 const WINDOW_WIDTH: i32 = 900;
 const WINDOW_HEIGHT: i32 = 900;
 
-const BACKGROUND_COLOR: Color = Color::BLACK;
+const BACKGROUND_COLOR: Color = Color::new(40, 42, 54, 255);
 const TICK_INTERVAL_MS: u64 = 120;
 
 fn place_pattern(grid: &mut Grid, origin_x: i32, origin_y: i32, cells: Vec<(i32, i32)>) {
@@ -138,11 +138,12 @@ fn main() {
     let mut framebuffer = Framebuffer::new(
         GRID_WIDTH,
         GRID_HEIGHT,
-        Color::BLACK,
+        BACKGROUND_COLOR,
     );
 
     let mut grid = build_initial_state();
     let mut paused = false;
+    let mut show_counter = true;
     let mut frame_count: u64 = 0;
     let mut generation: u64 = 0;
     let tick_interval = Duration::from_millis(TICK_INTERVAL_MS);
@@ -158,6 +159,10 @@ fn main() {
 
         if window.is_key_pressed(KeyboardKey::KEY_SPACE) {
             paused = !paused;
+        }
+
+        if window.is_key_pressed(KeyboardKey::KEY_O) {
+            show_counter = !show_counter;
         }
 
         if window.is_key_pressed(KeyboardKey::KEY_R) {
@@ -190,7 +195,7 @@ fn main() {
             &raylib_thread,
             WINDOW_WIDTH,
             WINDOW_HEIGHT,
-            Some(&title),
+            if show_counter { Some(&title) } else { None },
         );
     }
 }
